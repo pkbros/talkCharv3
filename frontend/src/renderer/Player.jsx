@@ -2,12 +2,12 @@
 import React, { useEffect, useState, useRef } from "react";
 import { PHONEME_TO_VISEME } from "./viseme_map";
 
-export default function Player({ batch, clearSignal }) {
+export default function Player({ batch, clearSignal, viseme, setViseme}) {
     const [text, setText] = useState("");
     const [emotion, setEmotion] = useState("");
     const [pose, setPose] = useState("");
     const [phoneme, setPhoneme] = useState("");
-    const [viseme, setViseme] = useState("");
+    // const [viseme, setViseme] = useState("");
 
     const queueRef = useRef([]);
     const isPlayingRef = useRef(false);

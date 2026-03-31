@@ -1,69 +1,90 @@
-import { useState } from "react";
-import Chat from "../chat/Chat";
+import { useState, useRef, useEffect } from "react";
 
-export const VoiceInput = ({setChatInput, handleSend}) => {
+export const VoiceInput = ({ setChatInput, handleSend }) => {
     const [listening, setListening] = useState(false);
     const [text, setText] = useState("");
+    const recognitionRef = useRef(null);
+    const transcriptRef = useRef("");
+    const isListeningRef = useRef(false); // source of truth for onend guard
+    const setChatInputRef = useRef(setChatInput);
+    const handleSendRef = useRef(handleSend);
 
-    // Browser speech recognition setup
-    const SpeechRecognition =
-        window.SpeechRecognition || window.webkitSpeechRecognition;
-    const recognition = new SpeechRecognition();
+    // Keep callback refs up to date on every render
+    useEffect(() => {
+        setChatInputRef.current = setChatInput;
+        handleSendRef.current = handleSend;
+    });
 
-    recognition.continuous = false; // stop after pause
-    recognition.interimResults = false; // only final results
-    recognition.lang = "en-US";
+    useEffect(() => {
+        const SpeechRecognition =
+            window.SpeechRecognition || window.webkitSpeechRecognition;
 
-    recognition.onresult = (event) => {
-        const transcript = event.results[0][0].transcript;
-        setText(transcript);
-        console.log("Recognized:", transcript);
-        handleVoiceSend(transcript);
-        
-    };
+        if (!SpeechRecognition) {
+            console.warn("Speech Recognition not supported in this browser.");
+            return;
+        }
 
-    recognition.onend = () => {
-        setListening(false);
-    };
+        const recognition = new SpeechRecognition();
+        recognition.continuous = true;
+        recognition.interimResults = false;
+        recognition.lang = "en-US";
 
-    const startListening = () => {
-        setListening(true);
-        recognition.start();
-    };
+        recognition.onresult = (event) => {
+            const transcript = Array.from(event.results)
+                .map(result => result[0].transcript)
+                .join(" ");
 
-    const stopListening = () => {
-        recognition.stop();
-        setListening(false);
-    };
+            transcriptRef.current = transcript;
+            setText(transcript);
+            console.log("Recognized so far:", transcript);
+        };
+
+        recognition.onend = () => {
+            // If user is still listening, restart recognition (browser ended the segment)
+            if (isListeningRef.current) {
+                recognition.start(); // restart to keep listening
+                return;
+            }
+
+            // User clicked stop — now actually send
+            setListening(false);
+            if (transcriptRef.current) {
+                setChatInputRef.current(transcriptRef.current);
+                handleSendRef.current(transcriptRef.current);
+                transcriptRef.current = "";
+            }
+        };
+
+        recognition.onerror = (event) => {
+            console.error("Speech recognition error:", event.error);
+            isListeningRef.current = false;
+            setListening(false);
+        };
+
+        recognitionRef.current = recognition;
+    }, []);
 
     const handleListen = () => {
-        if (!listening) {
+        const recognition = recognitionRef.current;
+        if (!recognition) return;
+
+        if (!isListeningRef.current) {
+            setText("");
+            transcriptRef.current = "";
+            isListeningRef.current = true;
             setListening(true);
             recognition.start();
         } else {
+            isListeningRef.current = false; // signal onend to not restart
             recognition.stop();
-            setListening(false);
         }
-
-    };
-    
-    const handleVoiceSend = (transcript) => {
-        const data = transcript ?? text;
-        console.log("handle voice send from voice")
-        setChatInput(data);
-        handleSend(data);
     };
 
     return (
         <div>
-            <button onClick={handleListen}>{!listening ? "Start Voice Input" : "Stop Voice Input"}</button>
-            {/* <button onClick={startListening} disabled={listening}>
-                🎤 Start Voice Input
+            <button onClick={handleListen}>
+                {listening ? "Stop Voice Input" : "Start Voice Input"}
             </button>
-            <button onClick={stopListening} disabled={!listening}>
-                ⏸ Stop
-            </button> */}
-            {/* <button onClick={() => handleVoiceSend(text)}>Press me</button> */}
             <p>Output: {text}</p>
         </div>
     );

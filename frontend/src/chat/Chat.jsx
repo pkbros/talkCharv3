@@ -43,7 +43,7 @@ export default function Chat({ onBatchReady }) {
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type your message..."
             />
-            <button onClick={handleSend}>Send</button>
+            <button onClick={() => handleSend(input)}>Send</button>
         </div>
     );
 }
