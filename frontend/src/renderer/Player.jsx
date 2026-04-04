@@ -2,12 +2,11 @@
 import React, { useEffect, useState, useRef } from "react";
 import { PHONEME_TO_VISEME } from "./viseme_map";
 
-export default function Player({ batch, clearSignal, viseme, setViseme}) {
+export default function Player({ batch, clearSignal, viseme, setViseme, emotion, setEmotion, pose, setPose}) {
     const [text, setText] = useState("");
-    const [emotion, setEmotion] = useState("");
-    const [pose, setPose] = useState("");
+
+    
     const [phoneme, setPhoneme] = useState("");
-    // const [viseme, setViseme] = useState("");
 
     const queueRef = useRef([]);
     const isPlayingRef = useRef(false);
@@ -20,6 +19,19 @@ export default function Player({ batch, clearSignal, viseme, setViseme}) {
         if (!audioCtxRef.current) {
             audioCtxRef.current = new (window.AudioContext || window.webkitAudioContext)();
         }
+    }, []);
+
+    // Pre-warm AudioContext on any user interaction so it's ready before first audio
+    useEffect(() => {
+        const warmUp = () => {
+            audioCtxRef.current?.resume();
+        };
+        window.addEventListener("click", warmUp, { once: true });
+        window.addEventListener("keydown", warmUp, { once: true });
+        return () => {
+            window.removeEventListener("click", warmUp);
+            window.removeEventListener("keydown", warmUp);
+        };
     }, []);
 
     // Handle clear signal
@@ -60,29 +72,24 @@ export default function Player({ batch, clearSignal, viseme, setViseme}) {
 
         if (!isPlayingRef.current) {
             playNext();
+            
         }
     }, [batch]);
 
     const decodeAudioData = (audio_base64) => {
-        // Step 1: base64 → raw bytes
         const binaryString = atob(audio_base64);
         const byteArray = new Uint8Array(binaryString.length);
         for (let i = 0; i < binaryString.length; i++) {
             byteArray[i] = binaryString.charCodeAt(i);
         }
 
-        // Step 2: slice to get a fresh, properly aligned ArrayBuffer
-        // This fixes the "damaged radio voice" caused by misaligned float reads
         const alignedBuffer = byteArray.buffer.slice(
             byteArray.byteOffset,
             byteArray.byteOffset + byteArray.byteLength
         );
 
-        // Step 3: interpret aligned bytes as float32 PCM
         const floatArray = new Float32Array(alignedBuffer);
 
-        // Step 4: sanity check — float32 PCM must be in [-1.0, 1.0]
-        // If values are way out of range, backend is sending int16, not float32
         const sample = floatArray[0];
         if (Math.abs(sample) > 1.5) {
             console.warn(
@@ -101,9 +108,11 @@ export default function Player({ batch, clearSignal, viseme, setViseme}) {
         return floatArray;
     };
 
-    const playNext = () => {
+    const playNext = async () => {
         if (queueRef.current.length === 0) {
             isPlayingRef.current = false;
+            setPose("default");
+            setEmotion("neutral")
             return;
         }
 
@@ -116,7 +125,10 @@ export default function Player({ batch, clearSignal, viseme, setViseme}) {
         try {
             const audioCtx = audioCtxRef.current;
 
-            // Decode base64 PCM → Float32Array (with alignment + int16 fallback)
+            // Wake up AudioContext and wait until it's actually running
+            // This is the key fix — on first call the context may be suspended
+            await audioCtx.resume();
+
             const floatArray = decodeAudioData(item.audio_base64);
 
             const sampleRate = item.sample_rate || 44100;
@@ -127,25 +139,26 @@ export default function Player({ batch, clearSignal, viseme, setViseme}) {
             source.buffer = audioBuffer;
             source.connect(audioCtx.destination);
 
-            // Capture audio start time as anchor for all timeouts
-            const scheduledStartTime = audioCtx.currentTime;
-            const msUntilStart = Math.max(0, (scheduledStartTime - audioCtx.currentTime) * 1000);
+            // Schedule audio 50ms into the future so timeouts can align perfectly.
+            // This small lookahead eliminates the wake-up stutter on first play.
+            const LOOKAHEAD_MS = 50;
+            const startAt = audioCtx.currentTime + LOOKAHEAD_MS / 1000;
 
-            // Metadata fires in sync with audio start
+            // Metadata fires exactly when audio starts
             const metaId = setTimeout(() => {
                 setText(item.text || "");
                 setEmotion(item.emotion || "");
                 setPose(item.pose || "");
-            }, msUntilStart);
+            }, LOOKAHEAD_MS);
             timeoutIdsRef.current.push(metaId);
 
-            // Phonemes + visemes anchored to same audio start time
+            // Phonemes + visemes anchored to the same start point
             if (Array.isArray(item.phonemes)) {
                 item.phonemes.forEach((ph) => {
                     if (!ph || !ph.phoneme) return;
 
-                    const startDelay = msUntilStart + ph.start * 1000;
-                    const endDelay = msUntilStart + ph.end * 1000;
+                    const startDelay = LOOKAHEAD_MS + ph.start * 1000;
+                    const endDelay   = LOOKAHEAD_MS + ph.end   * 1000;
 
                     const startId = setTimeout(() => {
                         setPhoneme(ph.phoneme);
@@ -154,14 +167,14 @@ export default function Player({ batch, clearSignal, viseme, setViseme}) {
 
                     const endId = setTimeout(() => {
                         setPhoneme("");
-                        setViseme("");
+                        setViseme("sil");
                     }, endDelay);
 
                     timeoutIdsRef.current.push(startId, endId);
                 });
             }
 
-            source.start(scheduledStartTime);
+            source.start(startAt);
             source.onended = () => { playNext(); };
             isPlayingRef.current = true;
 

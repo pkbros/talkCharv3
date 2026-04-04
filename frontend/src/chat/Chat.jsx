@@ -30,7 +30,7 @@ export default function Chat({ onBatchReady }) {
         console.log("cleared batch")
         onBatchReady([]);    // clear in parent too
         console.log("clear in parent too")
-        sendMessage({ text: input });
+        sendMessage({ text: toSend });
         console.log("message sent")
         setInput("");
     };

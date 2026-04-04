@@ -1,23 +1,18 @@
 EMOTIONS = [
     "neutral",  # Calm, default resting face. Use this most of the time.
     "happy",  # Smiling. For good news, jokes, compliments.
-    "excited",  # Big energy. For hype moments, surprises.
+    "wink",
     "sad",  # Droopy face. For bad news, empathy.
-    "confused",  # Raised eyebrow. For unclear or weird questions.
-    "thinking",  # Eyes up. For processing, pondering.
-    "surprised",  # Wide eyes. For unexpected information.
+    "think",  # Eyes up. For processing, pondering.
     "angry",  # Furrowed brow. For frustration or serious warnings.
 ]
 
 POSES = [
     "idle",  # Default standing/floating. No arm movement. USE THIS MOST.
     "wave",  # Waving hand. Only for hellos and goodbyes.
-    "nod",  # Nodding. For agreeing or emphasizing a point.
     "shrug",  # Shoulders up. For "I don't know" moments.
     "think",  # Hand on chin. For deep questions.
     "point",  # Pointing forward. For emphasizing a specific fact.
-    "clap",  # Clapping. Only for genuine celebrations or praise.
-    "bow",  # Head bow. For thank-yous or being polite.
 ]
 
 SYSTEM_PROMPT = f"""
