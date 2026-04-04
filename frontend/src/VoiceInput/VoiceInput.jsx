@@ -79,13 +79,18 @@ export const VoiceInput = ({ setChatInput, handleSend }) => {
             recognition.stop();
         }
     };
+    const handleSelfDescribe = () => {
+        setText("!describeYourself");
+        handleSendRef.current("!describeYourself");
+    };
 
     return (
-        <div>
+        <div style={{display:"flex",flexDirection:"column" ,justifyContent:"center", alignItems:"center"}}>
             <button onClick={handleListen}>
                 {listening ? "Stop Voice Input" : "Start Voice Input"}
             </button>
             <p>Output: {text}</p>
+            <button onClick={handleSelfDescribe}>Descibe YourSelf</button>
         </div>
     );
 };

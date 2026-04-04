@@ -185,7 +185,7 @@ export default function Player({ batch, clearSignal, viseme, setViseme, emotion,
     };
 
     return (
-        <div>
+        <div style={{display:"flex", flexDirection:"column", justifyContent:"center", alignItems:"center"}}>
             <h2>Text: {text}</h2>
             <h3>Emotion: {emotion}</h3>
             <h3>Pose: {pose}</h3>

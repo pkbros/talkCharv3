@@ -16,7 +16,7 @@ async def websocket_endpoint(websocket: WebSocket):
             print(f"Received from frontend: {data}")
 
             # Load JSON array from file
-            with open("data.json", "r", encoding="utf-8") as file:
+            with open("projectDetail.json", "r", encoding="utf-8") as file:
                 payloads = json.load(file)
 
             # Send each JSON object one by one

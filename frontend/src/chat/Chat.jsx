@@ -34,14 +34,22 @@ export default function Chat({ onBatchReady }) {
         console.log("message sent")
         setInput("");
     };
+    const handleKeyDown = (e) => {
+        if (e.key === "Enter") {
+            e.preventDefault(); // prevent newline if it's a textarea
+            handleSend();
+        }
+    };
+
 
     return (
         <div>
-            <VoiceInput setChatInput={setInput} handleSend={handleSend}/>
+            <VoiceInput setChatInput={setInput} handleSend={handleSend} />
             <input
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 placeholder="Type your message..."
+                onKeyDown={handleKeyDown}
             />
             <button onClick={() => handleSend(input)}>Send</button>
         </div>
